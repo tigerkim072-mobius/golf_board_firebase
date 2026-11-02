@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>스크린 골프 실시간 스코어보드</title>
-  
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
+
   <!-- React 18 & ReactDOM -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  
+
   <!-- Babel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
@@ -85,7 +85,7 @@
     function App() {
       const [activeTab, setActiveTab] = useState('scoreboard'); // 'scoreboard' | 'users'
       const [rankBy, setRankBy] = useState('net'); // 'net' | 'gross'
-      
+
       // 새 골퍼 등록 입력값
       const [newUserName, setNewUserName] = useState('');
       const [newUserHandy, setNewUserHandy] = useState(0);
@@ -296,9 +296,10 @@
         return 'bg-slate-100 text-slate-600';
       };
 
-      return (
+        return (
         <div className="max-w-4xl mx-auto space-y-6">
-          
+
+
           {/* 상단 네비게이션 헤더 */}
           <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -310,7 +311,7 @@
             </div>
 
             <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-              <button 
+              <button
                 onClick={() => setActiveTab('scoreboard')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                   activeTab === 'scoreboard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
@@ -318,7 +319,7 @@
               >
                 📊 스코어보드
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('users')}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
                   activeTab === 'users' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
@@ -334,8 +335,8 @@
             <div className="space-y-4">
               <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <select 
-                    value={rankBy} 
+                  <select
+                    value={rankBy}
                     onChange={(e) => setRankBy(e.target.value)}
                     className="text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold outline-none"
                   >
@@ -346,7 +347,7 @@
                 </div>
 
                 <div>
-                  <button 
+                  <button
                     onClick={handleResetScoresOnly}
                     className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors"
                   >
@@ -364,7 +365,7 @@
                         <th className="py-3.5 px-4 text-center w-28 bg-emerald-50 text-emerald-900">최종점수</th>
                         <th className="py-3.5 px-4 w-36">골퍼 이름</th>
                         <th className="py-3.5 px-4 text-center w-36">타수</th>
-                        <th className="py-3.5 px-4 text-center w-28">핸디</th>                        
+                        <th className="py-3.5 px-4 text-center w-28">핸디</th>
                         <th className="py-3.5 px-4 text-center w-32">멀리건</th>
                         <th className="py-3.5 px-4 text-center w-16">제외</th>
                       </tr>
@@ -395,20 +396,20 @@
                             </td>
                             <td className="py-4 px-4 text-center">
                               <div className="inline-flex items-center gap-2">
-                                <button 
-                                  onClick={() => adjustScore(item.userId, 'totalScore', -1)} 
+                                <button
+                                  onClick={() => adjustScore(item.userId, 'totalScore', -1)}
                                   className="btn-step hover:border-slate-400 active:bg-slate-300"
                                 >
                                   -
                                 </button>
-                                <input 
+                                <input
                                   type="number"
                                   value={item.totalScore}
                                   onChange={(e) => handleDirectInput(item.userId, 'totalScore', e.target.value)}
                                   className="w-14 text-center font-black text-xl text-slate-900 border border-slate-300 rounded-lg py-1 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                 />
-                                <button 
-                                  onClick={() => adjustScore(item.userId, 'totalScore', 1)} 
+                                <button
+                                  onClick={() => adjustScore(item.userId, 'totalScore', 1)}
                                   className="btn-step hover:border-slate-400 active:bg-slate-300"
                                 >
                                   +
@@ -422,7 +423,7 @@
                                 <button onClick={() => adjustScore(item.userId, 'handicap', 1)} className="btn-step-sm">+</button>
                               </div>
                             </td>
-                            
+
                             <td className="py-4 px-4 text-center">
                               <div className="inline-flex items-center gap-1.5">
                                 <button onClick={() => adjustScore(item.userId, 'mulligans', -1)} className="btn-step-sm">-</button>
@@ -431,8 +432,8 @@
                               </div>
                             </td>
                             <td className="py-4 px-4 text-center">
-                              <button 
-                                onClick={() => handleRemoveFromGame(item.userId)} 
+                              <button
+                                onClick={() => handleRemoveFromGame(item.userId)}
                                 className="text-xs text-slate-400 hover:text-rose-500 font-semibold"
                               >
                                 제외
@@ -451,15 +452,15 @@
           {/* 2. 골퍼 및 핸디 관리 탭 */}
           {activeTab === 'users' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
+
               {/* 좌측: 골퍼 신규 등록 폼 */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4 h-fit">
                 <h2 className="text-base font-bold text-slate-900 border-b pb-2">➕ 새 골퍼 등록</h2>
                 <form onSubmit={handleRegisterUser} className="space-y-3">
                   <div>
                     <label className="text-xs font-bold text-slate-600 block mb-1">골퍼 이름 / 닉네임</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="예: 홍길동"
                       value={newUserName}
                       onChange={(e) => setNewUserName(e.target.value)}
@@ -469,15 +470,15 @@
                   </div>
                   <div>
                     <label className="text-xs font-bold text-slate-600 block mb-1">기본 핸디캡</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={newUserHandy}
                       onChange={(e) => setNewUserHandy(e.target.value)}
                       className="w-full text-sm border border-slate-300 rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm py-2.5 rounded-lg transition-colors shadow-sm"
                   >
                     골퍼 등록
@@ -498,8 +499,8 @@
                     const isEditing = editingUserId === u.id;
 
                     return (
-                      <div 
-                        key={u.id} 
+                      <div
+                        key={u.id}
                         className={`p-3.5 rounded-xl border transition-all ${
                           isEditing ? 'border-emerald-400 bg-emerald-50/20 ring-1 ring-emerald-300' : 'border-slate-200 bg-slate-50'
                         }`}
@@ -508,7 +509,7 @@
                           /* 수정 모드 */
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2 flex-1">
-                              <input 
+                              <input
                                 type="text"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
@@ -516,7 +517,7 @@
                               />
                               <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-slate-500 font-bold">핸디:</span>
-                                <input 
+                                <input
                                   type="number"
                                   value={editHandy}
                                   onChange={(e) => setEditHandy(e.target.value)}
@@ -525,13 +526,13 @@
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5">
-                              <button 
+                              <button
                                 onClick={() => saveUserEdit(u.id)}
                                 className="text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg transition-colors"
                               >
                                 저장
                               </button>
-                              <button 
+                              <button
                                 onClick={() => setEditingUserId(null)}
                                 className="text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-200 px-3 py-1.5 rounded-lg transition-colors"
                               >
@@ -544,20 +545,20 @@
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-3">
                               <span className="font-bold text-slate-900 text-sm">{u.name}</span>
-                              
+
                               {/* 핸디캡 실시간 조정기 */}
                               <div className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2 py-1 rounded-lg shadow-xs">
                                 <span className="text-xs text-slate-400 font-semibold">핸디</span>
-                                <button 
-                                  onClick={() => adjustUserHandy(u.id, -1)} 
+                                <button
+                                  onClick={() => adjustUserHandy(u.id, -1)}
                                   className="btn-step-sm"
                                   title="핸디 1 감소"
                                 >
                                   -
                                 </button>
                                 <span className="w-7 text-center font-bold text-slate-800 text-sm">{u.defaultHandy}</span>
-                                <button 
-                                  onClick={() => adjustUserHandy(u.id, 1)} 
+                                <button
+                                  onClick={() => adjustUserHandy(u.id, 1)}
                                   className="btn-step-sm"
                                   title="핸디 1 증가"
                                 >
@@ -572,20 +573,20 @@
                                   참가 중
                                 </span>
                               ) : (
-                                <button 
+                                <button
                                   onClick={() => handleAddPlayerToGame(u)}
                                   className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-900 px-3 py-1.5 rounded-lg transition-colors"
                                 >
                                   + 게임 참가
                                 </button>
                               )}
-                              <button 
+                              <button
                                 onClick={() => startEditingUser(u)}
                                 className="text-xs font-medium text-slate-600 hover:text-indigo-600 border border-slate-200 bg-white hover:bg-slate-50 px-2 py-1 rounded-lg transition-colors"
                               >
                                 수정
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleDeleteUser(u.id)}
                                 className="text-xs font-medium text-rose-500 hover:text-rose-700 px-2 py-1"
                               >

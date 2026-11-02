@@ -26,3 +26,24 @@ Hosting URL: https://golfboard-10021.web.app
    │                                                                   │
    │                                                                   │
    ╰───────────────────────────────────────────────────────────────────╯
+
+
+
+-------------------------------
+# 1. 로컬 저장소 초기화 (이미 .git 폴더가 있는 상태라면 생략 가능)
+git init
+
+# 2. 업로드할 모든 파일 추적 목록에 추가
+git add .
+
+# 3. 변경 사항 커밋
+git commit -m "Initial commit"
+
+# 4. 기본 브랜치명을 main으로 설정
+git branch -M main
+
+# 5. 제공해주신 GitHub 원격 저장소 주소 등록
+git remote add origin https://github.com/tigerkim072-mobius/golf_board_vite.git
+
+# 6. GitHub 저장소로 코드 전송
+git push -u origin main   
