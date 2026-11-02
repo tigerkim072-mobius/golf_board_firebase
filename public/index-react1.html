@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>실시간 스코어보드 (React)</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- Babel Standalone (JSX 브라우저 해석용) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .btn-step {
+      width: 1.75rem;
+      height: 1.75rem;
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      border-radius: 0.5rem;
+      border: 1px solid #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .btn-step:hover { background-color: #e2e8f0; }
+    .btn-step:active { transform: scale(0.95); }
+
+    .btn-step-sm {
+      width: 1.5rem;
+      height: 1.5rem;
+      background-color: #ffffff;
+      color: #1e293b;
+      font-weight: 700;
+      font-size: 0.75rem;
+      border-radius: 0.25rem;
+      border: 1px solid #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .btn-step-sm:hover { background-color: #e2e8f0; }
+    .btn-step-sm:active { transform: scale(0.9); }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 md:p-8 font-sans">
+  <!-- React App Root Container -->
+  <div id="root"></div>
+
+  <!-- React Application Logic -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    const STORAGE_KEY = 'screen_golf_react_scoreboard_data';
+
+    // Par 72 기본 코스 기준
+    const defaultPars = [
+      4, 4, 3, 4, 5, 4, 3, 4, 5, // 전반 36
+      4, 4, 5, 3, 4, 4, 3, 5, 4  // 후반 36
+    ];
+
+    const initialPlayers = [
+      { id: 1, name: '김골프', handicap: 10, front9: 41, back9: 43, mulligans: 1, holeScores: Array(18).fill(4) },
+      { id: 2, name: '이싱글', handicap: 4, front9: 38, back9: 37, mulligans: 0, holeScores: Array(18).fill(4) },
+      { id: 3, name: '박이글', handicap: 18, front9: 46, back9: 45, mulligans: 2, holeScores: Array(18).fill(5) },
+      { id: 4, name: '최버디', handicap: 8, front9: 40, back9: 40, mulligans: 1, holeScores: Array(18).fill(4) }
+    ];
+
+    function App() {
+      const [currentView, setCurrentView] = useState('summary'); // 'summary' | 'detail'
+      const [rankBy, setRankBy] = useState('net'); // 'net' | 'gross'
+      
+      const [players, setPlayers] = useState(() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : initialPlayers;
+        } catch (e) {
+          return initialPlayers;
+        }
+      });
+
+      // 데이터 변경 시 로컬 스토리지 자동 저장
+      useEffect(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(players));
+        } catch (e) {
+          console.error('LocalStorage 저장 실패', e);
+        }
+      }, [players]);
+
+      // 실시간 순위 및 합계 계산
+      const rankedPlayers = useMemo(() => {
+        const calculated = players.map(p => {
+          let gross = 0;
+          if (currentView === 'detail') {
+            gross = p.holeScores.reduce((sum, val) => sum + (Number(val) || 0), 0);
+          } else {
+            gross = (Number(p.front9) || 0) + (Number(p.back9) || 0);
+          }
+          const net = gross - (Number(p.handicap) || 0);
+          return { ...p, grossScore: gross, netScore: net };
+        });
+
+        // 정렬
+        calculated.sort((a, b) => {
+          const primary = rankBy === 'net' ? a.netScore - b.netScore : a.grossScore - b.grossScore;
+          if (primary !== 0) return primary;
+          return a.grossScore - b.grossScore;
+        });
+
+        // 순위 매기기 (동타 처리)
+        return calculated.map((player, index, arr) => {
+          const targetKey = rankBy === 'net' ? 'netScore' : 'grossScore';
+          let rank = index + 1;
+          if (index > 0 && player[targetKey] === arr[index - 1][targetKey]) {
+            rank = arr[index - 1].rank;
+          }
+          return { ...player, rank };
+        });
+      }, [players, currentView, rankBy]);
+
+      // 전반, 후반, 핸디, 멀리건 가감
+      const adjustStat = (id, field, delta) => {
+        setPlayers(prev => prev.map(p => {
+          if (p.id !== id) return p;
+          const current = Number(p[field]) || 0;
+          return { ...p, [field]: Math.max(0, current + delta) };
+        }));
+      };
+
+      // 18홀 각 홀별 점수 가감
+      const adjustHoleScore = (id, holeIndex, delta) => {
+        setPlayers(prev => prev.map(p => {
+          if (p.id !== id) return p;
+          const newScores = [...p.holeScores];
+          const current = Number(newScores[holeIndex]) || 0;
+          newScores[holeIndex] = Math.max(0, current + delta);
+          
+          return {
+            ...p,
+            holeScores: newScores,
+            front9: newScores.slice(0, 9).reduce((a, b) => a + b, 0),
+            back9: newScores.slice(9, 18).reduce((a, b) => a + b, 0)
+          };
+        }));
+      };
+
+      // 플레이어 이름 변경
+      const handleNameChange = (id, newName) => {
+        setPlayers(prev => prev.map(p => p.id === id ? { ...p, name: newName } : p));
+      };
+
+      // 플레이어 추가
+      const addPlayer = () => {
+        const name = prompt('추가할 플레이어의 이름을 입력하세요:');
+        if (!name || !name.trim()) return;
+        const handicap = Number(prompt('핸디캡을 입력하세요 (숫자):', '0')) || 0;
+        
+        const newPlayer = {
+          id: Date.now(),
+          name: name.trim(),
+          handicap,
+          front9: 0,
+          back9: 0,
+          mulligans: 0,
+          holeScores: Array(18).fill(0)
+        };
+        setPlayers(prev => [...prev, newPlayer]);
+      };
+
+      // 플레이어 삭제
+      const removePlayer = (id) => {
+        if (confirm('해당 플레이어를 삭제하시겠습니까?')) {
+          setPlayers(prev => prev.filter(p => p.id !== id));
+        }
+      };
+
+      // 타수 일괄 0 리셋 (명단/핸디 유지)
+      const resetScoresToZero = () => {
+        if (!confirm('참가자 명단과 핸디를 유지하고, 모든 타수 및 멀리건을 0으로 초기화하시겠습니까?')) return;
+        setPlayers(prev => prev.map(p => ({
+          ...p,
+          front9: 0,
+          back9: 0,
+          mulligans: 0,
+          holeScores: Array(18).fill(0)
+        })));
+      };
+
+      // CSV 다운로드
+      const exportToCSV = () => {
+        const headers = ['순위', '플레이어', '핸디캡', '전반', '후반', '총타수', '네트타수', '멀리건'];
+        const rows = rankedPlayers.map(p => [
+          p.rank,
+          p.name,
+          p.handicap,
+          p.front9,
+          p.back9,
+          p.grossScore,
+          p.netScore,
+          p.mulligans
+        ]);
+        
+        const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `screen_golf_score_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+
+      const getRankBadgeClass = (rank) => {
+        if (rank === 1) return 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-sm';
+        if (rank === 2) return 'bg-slate-300 text-slate-800';
+        if (rank === 3) return 'bg-amber-700 text-amber-50';
+        return 'bg-slate-100 text-slate-600';
+      };
+
+      const getHoleScoreColor = (score, par) => {
+        if (score === 0) return 'text-slate-300';
+        const diff = score - par;
+        if (diff <= -2) return 'text-amber-500 font-extrabold';
+        if (diff === -1) return 'text-emerald-600 font-bold';
+        if (diff === 0) return 'text-slate-700';
+        if (diff === 1) return 'text-blue-600';
+        return 'text-rose-600 font-bold';
+      };
+
+      return (
+        <div className="max-w-6xl mx-auto space-y-6">
+          
+          {/* 헤더 및 컨트롤 바 */}
+          <header className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⛳</span>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">스크린 골프 실시간 스코어보드</h1>
+                <span className="text-xs bg-cyan-100 text-cyan-800 font-bold px-2 py-0.5 rounded-full">React Live</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">로컬 자동 저장 · 타수/멀리건 실시간 +/- 조정 · 순위 자동 계산</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200 text-xs font-semibold">
+                <button 
+                  onClick={() => setCurrentView('summary')} 
+                  className={`px-3 py-1.5 rounded-lg transition-all ${currentView === 'summary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  간편 요약 뷰
+                </button>
+                <button 
+                  onClick={() => setCurrentView('detail')} 
+                  className={`px-3 py-1.5 rounded-lg transition-all ${currentView === 'detail' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  18홀 정밀 뷰
+                </button>
+              </div>
+
+              <select 
+                value={rankBy} 
+                onChange={(e) => setRankBy(e.target.value)}
+                className="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="net">순위 기준: 네트 (핸디 반영)</option>
+                <option value="gross">순위 기준: 그로스 (총 타수)</option>
+              </select>
+
+              <button onClick={addPlayer} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 shadow-sm transition-colors">
+                + 플레이어 추가
+              </button>
+              <button onClick={resetScoresToZero} className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors">
+                타수 0 초기화
+              </button>
+              <button onClick={exportToCSV} className="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors">
+                CSV 내보내기
+              </button>
+            </div>
+          </header>
+
+          {/* 선두 랭킹 카드 */}
+          {rankedPlayers.length > 0 && (
+            <section className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              {rankedPlayers.slice(0, 4).map((p, index) => (
+                <div key={p.id} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm ${getRankBadgeClass(index + 1)}`}>
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 text-sm">{p.name}</div>
+                      <div className="text-xs text-slate-400">핸디 {p.handicap} · 멀리건 {p.mulligans}회</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-emerald-600">{p.netScore}타</div>
+                    <div className="text-[11px] text-slate-400">총 {p.grossScore}타</div>
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
+          {/* 1. 간편 요약 뷰 */}
+          {currentView === 'summary' ? (
+            <main className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[760px]">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
+                      <th className="py-3 px-4 text-center w-16">순위</th>
+                      <th className="py-3 px-4 w-36">플레이어</th>
+                      <th className="py-3 px-4 text-center w-28">핸디캡 (HD)</th>
+                      <th className="py-3 px-4 text-center w-36">전반 (OUT)</th>
+                      <th className="py-3 px-4 text-center w-36">후반 (IN)</th>
+                      <th className="py-3 px-4 text-center w-28">총 타수</th>
+                      <th className="py-3 px-4 text-center w-28 bg-emerald-50/50 text-emerald-900">네트 스코어</th>
+                      <th className="py-3 px-4 text-center w-36">멀리건</th>
+                      <th className="py-3 px-4 text-center w-20">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm font-medium">
+                    {rankedPlayers.map(player => (
+                      <tr key={player.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-4 px-4 text-center">
+                          <span className={`inline-flex w-7 h-7 rounded-full items-center justify-center font-bold text-xs ${getRankBadgeClass(player.rank)}`}>
+                            {player.rank}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 font-bold text-slate-900">
+                          <input 
+                            value={player.name}
+                            onChange={(e) => handleNameChange(player.id, e.target.value)}
+                            className="bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none w-full py-0.5 text-sm"
+                          />
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button onClick={() => adjustStat(player.id, 'handicap', -1)} className="btn-step">-</button>
+                            <span className="w-7 text-center font-semibold text-slate-700">{player.handicap}</span>
+                            <button onClick={() => adjustStat(player.id, 'handicap', 1)} className="btn-step">+</button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button onClick={() => adjustStat(player.id, 'front9', -1)} className="btn-step">-</button>
+                            <span className="w-8 text-center font-bold text-slate-800">{player.front9}</span>
+                            <button onClick={() => adjustStat(player.id, 'front9', 1)} className="btn-step">+</button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button onClick={() => adjustStat(player.id, 'back9', -1)} className="btn-step">-</button>
+                            <span className="w-8 text-center font-bold text-slate-800">{player.back9}</span>
+                            <button onClick={() => adjustStat(player.id, 'back9', 1)} className="btn-step">+</button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center font-black text-slate-800">
+                          {player.grossScore}
+                        </td>
+                        <td className="py-4 px-4 text-center font-black text-emerald-600 bg-emerald-50/30 text-base">
+                          {player.netScore}
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button onClick={() => adjustStat(player.id, 'mulligans', -1)} className="btn-step">-</button>
+                            <span className="w-6 text-center font-bold text-amber-600">{player.mulligans}</span>
+                            <button onClick={() => adjustStat(player.id, 'mulligans', 1)} className="btn-step">+</button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <button onClick={() => removePlayer(player.id)} className="text-xs text-rose-500 hover:text-rose-700 font-semibold p-1">
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </main>
+          ) : (
+            /* 2. 18홀 정밀 뷰 */
+            <main className="space-y-4">
+              {rankedPlayers.map(player => (
+                <div key={player.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${getRankBadgeClass(player.rank)}`}>
+                        {player.rank}
+                      </span>
+                      <span className="font-black text-slate-900 text-base">{player.name}</span>
+                      <span className="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">핸디 {player.handicap}</span>
+                      <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-medium">멀리건 {player.mulligans}회</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm font-bold">
+                      <div>그로스: <span className="text-slate-900">{player.grossScore}</span></div>
+                      <div className="text-emerald-600">네트: <span className="text-lg font-black">{player.netScore}</span></div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-9 gap-2">
+                    {player.holeScores.map((score, hIdx) => (
+                      <div key={hIdx} className="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50 flex flex-col justify-between">
+                        <div className="flex justify-between items-center text-[11px] text-slate-400 font-bold mb-1">
+                          <span>{hIdx + 1}H</span>
+                          <span>P{defaultPars[hIdx]}</span>
+                        </div>
+                        
+                        <div className={`text-lg font-black my-1 ${getHoleScoreColor(score, defaultPars[hIdx])}`}>
+                          {score}
+                        </div>
+
+                        <div className="flex justify-center items-center gap-1.5 mt-1">
+                          <button onClick={() => adjustHoleScore(player.id, hIdx, -1)} className="btn-step-sm">-</button>
+                          <button onClick={() => adjustHoleScore(player.id, hIdx, 1)} className="btn-step-sm">+</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </main>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

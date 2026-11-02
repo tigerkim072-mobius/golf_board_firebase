@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>스크린 골프 실시간 스코어보드</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    .btn-step {
+      width: 1.75rem;
+      height: 1.75rem;
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      border-radius: 0.5rem;
+      border: 1px solid #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .btn-step:hover { background-color: #e2e8f0; }
+    .btn-step:active { transform: scale(0.95); }
+
+    .btn-step-sm {
+      width: 1.5rem;
+      height: 1.5rem;
+      background-color: #ffffff;
+      color: #1e293b;
+      font-weight: 700;
+      font-size: 0.75rem;
+      border-radius: 0.25rem;
+      border: 1px solid #cbd5e1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+    .btn-step-sm:hover { background-color: #e2e8f0; }
+    .btn-step-sm:active { transform: scale(0.9); }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 p-4 md:p-8 font-sans">
+  <div id="app" class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- 상단 헤더 & 컨트롤 바 -->
+    <header class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">⛳</span>
+          <h1 class="text-2xl font-black text-slate-900 tracking-tight">스크린 골프 실시간 스코어보드</h1>
+          <span class="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Vue 3 Live</span>
+        </div>
+        <p class="text-xs text-slate-500 mt-1">로컬 자동 저장 · 타수/멀리건 실시간 +/- 조정 · 순위 자동 계산</p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200 text-xs font-semibold">
+          <button 
+            @click="currentView = 'summary'" 
+            :class="currentView === 'summary' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+            class="px-3 py-1.5 rounded-lg transition-all"
+          >
+            간편 요약 뷰
+          </button>
+          <button 
+            @click="currentView = 'detail'" 
+            :class="currentView === 'detail' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'"
+            class="px-3 py-1.5 rounded-lg transition-all"
+          >
+            18홀 정밀 뷰
+          </button>
+        </div>
+
+        <select v-model="rankBy" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500">
+          <option value="net">순위 기준: 네트 (핸디 반영)</option>
+          <option value="gross">순위 기준: 그로스 (총 타수)</option>
+        </select>
+
+        <button @click="openAddPlayerModal" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1 shadow-sm transition-colors">
+          <span>+ 플레이어 추가</span>
+        </button>
+        <button @click="resetScoresToZero" class="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold px-3 py-2 rounded-lg transition-colors">
+          타수 0 초기화
+        </button>
+        <button @click="exportToCSV" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors">
+          CSV 내보내기
+        </button>
+      </div>
+    </header>
+
+    <!-- 선두 요약 배너 -->
+    <section v-if="rankedPlayers.length > 0" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div 
+        v-for="(p, index) in rankedPlayers.slice(0, 4)" 
+        :key="p.id"
+        class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div :class="getRankBadgeClass(index + 1)" class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm">
+            {{ index + 1 }}
+          </div>
+          <div>
+            <div class="font-bold text-slate-900 text-sm">{{ p.name }}</div>
+            <div class="text-xs text-slate-400">핸디 {{ p.handicap }} · 멀리건 {{ p.mulligans }}회</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-lg font-black text-emerald-600">{{ p.netScore }}타</div>
+          <div class="text-[11px] text-slate-400">총 {{ p.grossScore }}타</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1. 간편 요약 뷰 -->
+    <main v-if="currentView === 'summary'" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[760px]">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider font-bold">
+              <th class="py-3 px-4 text-center w-16">순위</th>
+              <th class="py-3 px-4 w-36">플레이어</th>
+              <th class="py-3 px-4 text-center w-28">핸디캡 (HD)</th>
+              <th class="py-3 px-4 text-center w-36">전반 (OUT)</th>
+              <th class="py-3 px-4 text-center w-36">후반 (IN)</th>
+              <th class="py-3 px-4 text-center w-28">총 타수</th>
+              <th class="py-3 px-4 text-center w-28 bg-emerald-50/50 text-emerald-900">네트 스코어</th>
+              <th class="py-3 px-4 text-center w-36">멀리건</th>
+              <th class="py-3 px-4 text-center w-20">관리</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 text-sm font-medium">
+            <tr 
+              v-for="player in rankedPlayers" 
+              :key="player.id"
+              class="hover:bg-slate-50/80 transition-colors"
+            >
+              <td class="py-4 px-4 text-center">
+                <span :class="getRankBadgeClass(player.rank)" class="inline-flex w-7 h-7 rounded-full items-center justify-center font-bold text-xs">
+                  {{ player.rank }}
+                </span>
+              </td>
+              <td class="py-4 px-4 font-bold text-slate-900">
+                <input 
+                  v-model="player.name" 
+                  @change="saveToStorage"
+                  class="bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none w-full py-0.5 text-sm"
+                />
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="inline-flex items-center gap-1.5">
+                  <button @click="adjustStat(player, 'handicap', -1)" class="btn-step">-</button>
+                  <span class="w-7 text-center font-semibold text-slate-700">{{ player.handicap }}</span>
+                  <button @click="adjustStat(player, 'handicap', 1)" class="btn-step">+</button>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="inline-flex items-center gap-1.5">
+                  <button @click="adjustStat(player, 'front9', -1)" class="btn-step">-</button>
+                  <span class="w-8 text-center font-bold text-slate-800">{{ player.front9 }}</span>
+                  <button @click="adjustStat(player, 'front9', 1)" class="btn-step">+</button>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="inline-flex items-center gap-1.5">
+                  <button @click="adjustStat(player, 'back9', -1)" class="btn-step">-</button>
+                  <span class="w-8 text-center font-bold text-slate-800">{{ player.back9 }}</span>
+                  <button @click="adjustStat(player, 'back9', 1)" class="btn-step">+</button>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center font-black text-slate-800">
+                {{ player.grossScore }}
+              </td>
+              <td class="py-4 px-4 text-center font-black text-emerald-600 bg-emerald-50/30 text-base">
+                {{ player.netScore }}
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="inline-flex items-center gap-1.5">
+                  <button @click="adjustStat(player, 'mulligans', -1)" class="btn-step">-</button>
+                  <span class="w-6 text-center font-bold text-amber-600">{{ player.mulligans }}</span>
+                  <button @click="adjustStat(player, 'mulligans', 1)" class="btn-step">+</button>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <button @click="removePlayer(player.id)" class="text-xs text-rose-500 hover:text-rose-700 font-semibold p-1">
+                  삭제
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+    <!-- 2. 18홀 정밀 뷰 -->
+    <main v-else class="space-y-4">
+      <div 
+        v-for="player in rankedPlayers" 
+        :key="player.id"
+        class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div class="flex items-center gap-3">
+            <span :class="getRankBadgeClass(player.rank)" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold">
+              {{ player.rank }}
+            </span>
+            <span class="font-black text-slate-900 text-base">{{ player.name }}</span>
+            <span class="text-xs px-2 py-0.5 bg-slate-100 rounded text-slate-600 font-medium">핸디 {{ player.handicap }}</span>
+            <span class="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded font-medium">멀리건 {{ player.mulligans }}회</span>
+          </div>
+          <div class="flex items-center gap-4 text-sm font-bold">
+            <div>그로스: <span class="text-slate-900">{{ player.grossScore }}</span></div>
+            <div class="text-emerald-600">네트: <span class="text-lg font-black">{{ player.netScore }}</span></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-6 lg:grid-cols-9 gap-2">
+          <div 
+            v-for="(score, hIdx) in player.holeScores" 
+            :key="hIdx"
+            class="border border-slate-200 rounded-xl p-2.5 text-center bg-slate-50 flex flex-col justify-between"
+          >
+            <div class="flex justify-between items-center text-[11px] text-slate-400 font-bold mb-1">
+              <span>{{ hIdx + 1 }}H</span>
+              <span>P{{ defaultPars[hIdx] }}</span>
+            </div>
+            
+            <div class="text-lg font-black my-1" :class="getHoleScoreColor(score, defaultPars[hIdx])">
+              {{ score }}
+            </div>
+
+            <div class="flex justify-center items-center gap-1.5 mt-1">
+              <button @click="adjustHoleScore(player, hIdx, -1)" class="btn-step-sm">-</button>
+              <button @click="adjustHoleScore(player, hIdx, 1)" class="btn-step-sm">+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, watch } = Vue;
+
+    createApp({
+      setup() {
+        const STORAGE_KEY = 'screen_golf_vue_scoreboard_data';
+        const defaultPars = [
+          4, 4, 3, 4, 5, 4, 3, 4, 5,
+          4, 4, 5, 3, 4, 4, 3, 5, 4
+        ];
+
+        const currentView = ref('summary');
+        const rankBy = ref('net');
+
+        const players = ref([
+          { id: 1, name: '김골프', handicap: 10, front9: 41, back9: 43, mulligans: 1, holeScores: Array(18).fill(4) },
+          { id: 2, name: '이싱글', handicap: 4, front9: 38, back9: 37, mulligans: 0, holeScores: Array(18).fill(4) },
+          { id: 3, name: '박이글', handicap: 18, front9: 46, back9: 45, mulligans: 2, holeScores: Array(18).fill(5) },
+          { id: 4, name: '최버디', handicap: 8, front9: 40, back9: 40, mulligans: 1, holeScores: Array(18).fill(4) }
+        ]);
+
+        const rankedPlayers = computed(() => {
+          const calculated = players.value.map(p => {
+            let gross = 0;
+            if (currentView.value === 'detail') {
+              gross = p.holeScores.reduce((sum, val) => sum + (Number(val) || 0), 0);
+            } else {
+              gross = (Number(p.front9) || 0) + (Number(p.back9) || 0);
+            }
+            const net = gross - (Number(p.handicap) || 0);
+            return { ...p, grossScore: gross, netScore: net };
+          });
+
+          calculated.sort((a, b) => {
+            const primary = rankBy.value === 'net' ? a.netScore - b.netScore : a.grossScore - b.grossScore;
+            if (primary !== 0) return primary;
+            return a.grossScore - b.grossScore;
+          });
+
+          return calculated.map((player, index, arr) => {
+            const targetKey = rankBy.value === 'net' ? 'netScore' : 'grossScore';
+            let rank = index + 1;
+            if (index > 0 && player[targetKey] === arr[index - 1][targetKey]) {
+              rank = arr[index - 1].rank;
+            }
+            return { ...player, rank };
+          });
+        });
+
+        const adjustStat = (player, field, delta) => {
+          const current = Number(player[field]) || 0;
+          player[field] = Math.max(0, current + delta);
+          saveToStorage();
+        };
+
+        const adjustHoleScore = (player, holeIndex, delta) => {
+          const current = Number(player.holeScores[holeIndex]) || 0;
+          player.holeScores[holeIndex] = Math.max(0, current + delta);
+          player.front9 = player.holeScores.slice(0, 9).reduce((a, b) => a + b, 0);
+          player.back9 = player.holeScores.slice(9, 18).reduce((a, b) => a + b, 0);
+          saveToStorage();
+        };
+
+        const openAddPlayerModal = () => {
+          const name = prompt('추가할 플레이어의 이름을 입력하세요:');
+          if (!name || !name.trim()) return;
+          const handicap = Number(prompt('핸디캡을 입력하세요 (숫자):', '0')) || 0;
+          players.value.push({
+            id: Date.now(),
+            name: name.trim(),
+            handicap,
+            front9: 0,
+            back9: 0,
+            mulligans: 0,
+            holeScores: Array(18).fill(0)
+          });
+          saveToStorage();
+        };
+
+        const removePlayer = (id) => {
+          if (confirm('해당 플레이어를 삭제하시겠습니까?')) {
+            players.value = players.value.filter(p => p.id !== id);
+            saveToStorage();
+          }
+        };
+
+        const resetScoresToZero = () => {
+          if (!confirm('참가자 명단과 핸디를 유지하고, 모든 타수 및 멀리건을 0으로 초기화하시겠습니까?')) return;
+          players.value.forEach(p => {
+            p.front9 = 0;
+            p.back9 = 0;
+            p.mulligans = 0;
+            p.holeScores = Array(18).fill(0);
+          });
+          saveToStorage();
+        };
+
+        const getRankBadgeClass = (rank) => {
+          if (rank === 1) return 'bg-amber-400 text-amber-950 ring-2 ring-amber-300 shadow-sm';
+          if (rank === 2) return 'bg-slate-300 text-slate-800';
+          if (rank === 3) return 'bg-amber-700 text-amber-50';
+          return 'bg-slate-100 text-slate-600';
+        };
+
+        const getHoleScoreColor = (score, par) => {
+          if (score === 0) return 'text-slate-300';
+          const diff = score - par;
+          if (diff <= -2) return 'text-amber-500 font-extrabold';
+          if (diff === -1) return 'text-emerald-600 font-bold';
+          if (diff === 0) return 'text-slate-700';
+          if (diff === 1) return 'text-blue-600';
+          return 'text-rose-600 font-bold';
+        };
+
+        const saveToStorage = () => {
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(players.value));
+          } catch (e) {
+            console.error('LocalStorage 저장 실패', e);
+          }
+        };
+
+        const loadFromStorage = () => {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+              players.value = JSON.parse(saved);
+            }
+          } catch (e) {
+            console.error('LocalStorage 복원 실패', e);
+          }
+        };
+
+        const exportToCSV = () => {
+          const headers = ['순위', '플레이어', '핸디캡', '전반', '후반', '총타수', '네트타수', '멀리건'];
+          const rows = rankedPlayers.value.map(p => [
+            p.rank,
+            p.name,
+            p.handicap,
+            p.front9,
+            p.back9,
+            p.grossScore,
+            p.netScore,
+            p.mulligans
+          ]);
+          
+          const csvContent = '\uFEFF' + [headers, ...rows].map(row => row.join(',')).join('\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a')
+          link.setAttribute('href', url);
+          link.setAttribute('download', `screen_golf_score_${new Date().toISOString().slice(0, 10)}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        };
+
+        onMounted(() => {
+          loadFromStorage();
+        });
+
+        watch(players, () => {
+          saveToStorage();
+        }, { deep: true });
+
+        return {
+          currentView,
+          rankBy,
+          defaultPars,
+          players,
+          rankedPlayers,
+          adjustStat,
+          adjustHoleScore,
+          openAddPlayerModal,
+          removePlayer,
+          resetScoresToZero,
+          getRankBadgeClass,
+          getHoleScoreColor,
+          exportToCSV,
+          saveToStorage
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

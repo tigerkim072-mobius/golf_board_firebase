@@ -1,0 +1,28 @@
+PS C:\demo\golf_board> firebase deploy
+
+=== Deploying to 'golfboard-10021'...
+
+i  deploying hosting
+i  hosting[golfboard-10021]: beginning deploy...
+i  hosting[golfboard-10021]: found 4 files in public
++  hosting[golfboard-10021]: file upload complete
+i  hosting[golfboard-10021]: finalizing version...
++  hosting[golfboard-10021]: version finalized
+i  hosting[golfboard-10021]: releasing new version...
++  hosting[golfboard-10021]: release complete
+
++  Deploy complete!
+
+Project Console: https://console.firebase.google.com/project/golfboard-10021/overview
+Hosting URL: https://golfboard-10021.web.app
+
+   ╭───────────────────────────────────────────────────────────────────╮
+   │                                                                   │
+   │                Update available 15.34.0 → 15.34.2                 │
+   │          To update to the latest version using npm, run           │
+   │                   npm install -g firebase-tools                   │
+   │   For other CLI management options, visit the CLI documentation   │
+   │                                                                   │
+   │                                                                   │
+   │                                                                   │
+   ╰───────────────────────────────────────────────────────────────────╯
